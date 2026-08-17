@@ -30,6 +30,28 @@ const themeBanner = document.getElementById('theme-banner');
 const drawBtn = document.getElementById('draw-btn');
 const changeThemeBtn = document.getElementById('change-theme-btn');
 const overallEl = document.getElementById('overall');
+const themeToggle = document.getElementById('theme-toggle');
+
+const savedTheme = (() => {
+  try {
+    return localStorage.getItem('tarot-theme') || 'dark';
+  } catch (error) {
+    return 'dark';
+  }
+})();
+document.documentElement.dataset.theme = savedTheme;
+themeToggle.setAttribute('aria-pressed', savedTheme === 'light' ? 'true' : 'false');
+
+themeToggle.addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next;
+  try {
+    localStorage.setItem('tarot-theme', next);
+  } catch (error) {
+    // Ignore storage failures, theme still switches for this visit.
+  }
+  themeToggle.setAttribute('aria-pressed', next === 'light' ? 'true' : 'false');
+});
 
 function themeIcon(icon) {
   const paths = {
