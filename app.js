@@ -235,6 +235,18 @@ function escapeHtml(text) {
   ));
 }
 
+function cleanAIResponse(text) {
+  return String(text)
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\*\*/g, '')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+[.、]\s+/gm, '')
+    .replace(/^\s*-{3,}\s*$/gm, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 async function requestAI() {
   if (!state.drawn || !state.flipped.every(Boolean)) return;
   aiButton.disabled = true;
@@ -265,7 +277,7 @@ async function requestAI() {
     if (!response.ok) {
       throw new Error(data.error || 'AI 解读暂时不可用');
     }
-    aiResult.innerHTML = `<div class="ai-label">AI 解读</div><p>${escapeHtml(data.text || '')}</p>`;
+    aiResult.innerHTML = `<div class="ai-label">AI 解读</div><p>${escapeHtml(cleanAIResponse(data.text || ''))}</p>`;
   } catch (error) {
     aiResult.innerHTML = `<div class="ai-label">AI 解读</div><p>${escapeHtml(error.message || '请求失败，请稍后再试')}</p>`;
     aiResult.classList.add('is-error');
