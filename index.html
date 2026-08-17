@@ -50,6 +50,11 @@
           <div id="theme-banner" class="theme-banner"></div>
         </div>
 
+        <div class="context-box">
+          <label for="question-input">补充信息（可选）</label>
+          <textarea id="question-input" maxlength="500" rows="2" placeholder="例如：最近在准备考试，压力很大"></textarea>
+        </div>
+
         <div id="cards-row" class="cards-row"></div>
 
         <div class="draw-area">
@@ -57,6 +62,11 @@
         </div>
 
         <div id="overall" class="overall" hidden></div>
+
+        <div class="ai-area">
+          <button id="ai-button" class="primary-button" type="button" disabled>AI 解读</button>
+          <div id="ai-result" class="ai-result" hidden></div>
+        </div>
       </section>
     </main>
     <footer class="attribution">牌面：Pamela Colman Smith 绘，公有领域 · 来源 Wikimedia Commons</footer>

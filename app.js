@@ -31,6 +31,9 @@ const drawBtn = document.getElementById('draw-btn');
 const changeThemeBtn = document.getElementById('change-theme-btn');
 const overallEl = document.getElementById('overall');
 const themeToggle = document.getElementById('theme-toggle');
+const questionInput = document.getElementById('question-input');
+const aiButton = document.getElementById('ai-button');
+const aiResult = document.getElementById('ai-result');
 
 const savedTheme = (() => {
   try {
@@ -127,6 +130,10 @@ function showReading(theme) {
   drawBtn.textContent = '洗牌并抽三张';
   drawBtn.disabled = false;
   overallEl.hidden = true;
+  questionInput.value = '';
+  aiButton.disabled = true;
+  aiResult.hidden = true;
+  aiResult.classList.remove('is-error');
   themeScreen.classList.remove('active');
   readingScreen.classList.add('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -149,6 +156,9 @@ function drawCards() {
   }));
   state.flipped = [false, false, false];
   overallEl.hidden = true;
+  aiButton.disabled = true;
+  aiResult.hidden = true;
+  aiResult.classList.remove('is-error');
 
   const cards = cardsRow.querySelectorAll('.card');
   cards.forEach((cardEl, i) => {
@@ -216,6 +226,54 @@ function renderOverall() {
     <p>这个牌阵里「${SUITS[topSuit].name}」的元素最重（${SUITS[topSuit].element}元素），在「${state.theme.name}」这件事上，多留意${SUIT_CLOSERS[topSuit]}。</p>
   `;
   overallEl.hidden = false;
+  aiButton.disabled = false;
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (ch) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
+  ));
+}
+
+async function requestAI() {
+  if (!state.drawn || !state.flipped.every(Boolean)) return;
+  aiButton.disabled = true;
+  aiButton.textContent = 'AI 解读中...';
+  aiResult.hidden = true;
+  aiResult.classList.remove('is-error');
+
+  const payload = {
+    theme: state.theme.name,
+    question: questionInput.value.trim().slice(0, 500),
+    cards: state.drawn.map((draw) => ({
+      title: cardTitle(draw.card),
+      suit: SUITS[draw.card.suit].name,
+      orientation: draw.reversed ? '逆位' : '正位',
+      keywords: draw.card.keywords,
+      meaning: draw.reversed ? draw.card.reversed : draw.card.upright,
+      themeNote: themeFocusLine(state.theme.id, draw.card.suit, draw.reversed)
+    }))
+  };
+
+  try {
+    const response = await fetch('/api/reading', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || 'AI 解读暂时不可用');
+    }
+    aiResult.innerHTML = `<div class="ai-label">AI 解读</div><p>${escapeHtml(data.text || '')}</p>`;
+  } catch (error) {
+    aiResult.innerHTML = `<div class="ai-label">AI 解读</div><p>${escapeHtml(error.message || '请求失败，请稍后再试')}</p>`;
+    aiResult.classList.add('is-error');
+  } finally {
+    aiButton.disabled = false;
+    aiButton.textContent = 'AI 解读';
+    aiResult.hidden = false;
+  }
 }
 
 function flipCard(cardEl) {
@@ -256,6 +314,8 @@ cardsRow.addEventListener('keydown', (event) => {
 });
 
 drawBtn.addEventListener('click', drawCards);
+
+aiButton.addEventListener('click', requestAI);
 
 changeThemeBtn.addEventListener('click', () => {
   readingScreen.classList.remove('active');
