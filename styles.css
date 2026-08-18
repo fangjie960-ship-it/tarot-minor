@@ -767,15 +767,35 @@ html[data-theme="light"] .ai-result p {
   }
 
   .reading-top {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 8px;
     margin-bottom: 22px;
   }
 
-  .theme-banner {
-    align-self: flex-end;
-    padding: 7px 12px;
+  .text-button {
+    padding: 4px 2px;
     font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .text-button svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .theme-banner {
+    align-self: auto;
+    padding: 6px 10px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  .banner-icon svg {
+    width: 16px;
+    height: 16px;
   }
 
   .context-box {
