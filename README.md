@@ -24,6 +24,17 @@
 
 Cloudflare Pages 在项目 Settings -> Environment variables 中设置，Vercel 在项目 Settings -> Environment Variables 中设置。
 
+## 使用统计（Cloudflare D1）
+
+抽完三张牌后，前端会静默记录主题、三张牌、正逆位和可选问题到 `/api/log`。问题原文只有在用户勾选「同意将本次抽牌信息用于匿名统计」后才会发送。
+
+配置步骤：
+
+1. 在 Cloudflare 后台创建一个 D1 数据库，例如 `tarot-stats`。
+2. 在 Pages 项目 Settings -> Functions -> D1 database bindings 中绑定该数据库，绑定名填 `DB`。
+3. 重新部署一次。第一次收到日志时后端会自动创建 `readings` 表，也可以手动在 D1 Console 执行建表 SQL。
+4. 一周后在 D1 Console 查询或导出 CSV 即可分析。
+
 ## 图片版权
 
 牌面来自 Wikimedia Commons 的 Vectorized Tarot by Immanuelle，原作由 Pamela Colman Smith 绘制，属于公有领域。

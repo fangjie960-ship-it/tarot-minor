@@ -19,7 +19,9 @@ const SUIT_CLOSERS = {
 const state = {
   theme: null,
   drawn: null,
-  flipped: [false, false, false]
+  flipped: [false, false, false],
+  logged: false,
+  lastLogId: null
 };
 
 const themeScreen = document.getElementById('theme-screen');
@@ -32,6 +34,7 @@ const changeThemeBtn = document.getElementById('change-theme-btn');
 const overallEl = document.getElementById('overall');
 const themeToggle = document.getElementById('theme-toggle');
 const questionInput = document.getElementById('question-input');
+const consentInput = document.getElementById('consent-input');
 const aiButton = document.getElementById('ai-button');
 const aiResult = document.getElementById('ai-result');
 
@@ -125,6 +128,8 @@ function showReading(theme) {
   state.theme = theme;
   state.drawn = null;
   state.flipped = [false, false, false];
+  state.logged = false;
+  state.lastLogId = null;
   themeBanner.innerHTML = themeBannerHTML(theme);
   cardsRow.innerHTML = [0, 1, 2].map(cardSlotHTML).join('');
   drawBtn.textContent = '洗牌并抽三张';
@@ -155,6 +160,8 @@ function drawCards() {
     reversed: Math.random() < 0.5
   }));
   state.flipped = [false, false, false];
+  state.logged = false;
+  state.lastLogId = null;
   overallEl.hidden = true;
   aiButton.disabled = true;
   aiResult.hidden = true;
@@ -277,6 +284,7 @@ async function requestAI() {
     if (!response.ok) {
       throw new Error(data.error || 'AI 解读暂时不可用');
     }
+    updateAIUsed();
     aiResult.innerHTML = `<div class="ai-label">AI 解读</div><p>${escapeHtml(cleanAIResponse(data.text || ''))}</p>`;
   } catch (error) {
     aiResult.innerHTML = `<div class="ai-label">AI 解读</div><p>${escapeHtml(error.message || '请求失败，请稍后再试')}</p>`;
@@ -286,6 +294,38 @@ async function requestAI() {
     aiButton.textContent = 'AI 解读';
     aiResult.hidden = false;
   }
+}
+
+function sendReadingLog() {
+  if (!state.drawn || state.logged) return;
+  state.logged = true;
+  const payload = {
+    theme: state.theme.name,
+    cards: state.drawn.map((draw) => ({
+      title: cardTitle(draw.card),
+      reversed: draw.reversed
+    })),
+    question: consentInput.checked ? questionInput.value.trim().slice(0, 500) : null,
+    used_ai: false
+  };
+  fetch("/api/log", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then((response) => response.json().catch(() => ({})))
+    .then((data) => {
+      if (data && data.id) state.lastLogId = data.id;
+    })
+    .catch(() => {});
+}
+
+function updateAIUsed() {
+  if (!state.lastLogId) return;
+  fetch("/api/log", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: state.lastLogId, used_ai: true })
+  }).catch(() => {});
 }
 
 function flipCard(cardEl) {
@@ -301,6 +341,7 @@ function flipCard(cardEl) {
   state.flipped[index] = true;
   if (state.flipped.every(Boolean)) {
     renderOverall();
+    sendReadingLog();
   }
 }
 

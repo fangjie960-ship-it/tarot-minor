@@ -290,6 +290,23 @@ html[data-theme="light"] .theme-toggle .icon-moon {
   color: #8d7d5b;
 }
 
+.context-box .consent-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: #b9a877;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.context-box .consent-label input {
+  width: 16px;
+  height: 16px;
+  accent-color: #c9a45c;
+}
+
 .cards-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -697,6 +714,10 @@ html[data-theme="light"] .context-box textarea {
 
 html[data-theme="light"] .context-box textarea::placeholder {
   color: #a08c67;
+}
+
+html[data-theme="light"] .context-box .consent-label {
+  color: #7a6a4a;
 }
 
 html[data-theme="light"] .ai-result {
