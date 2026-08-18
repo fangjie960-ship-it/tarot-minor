@@ -1,8 +1,10 @@
 const POSITION_NAMES = ['现状', '课题', '建议'];
 
 const USAGE_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS ai_usage (ip TEXT NOT NULL, day TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (ip, day))';
+const WEEKLY_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS ai_weekly (week TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0)';
 
 const inMemoryDaily = new Map();
+const inMemoryWeekly = new Map();
 
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -25,26 +27,62 @@ function shanghaiDateKey(input) {
   return values.year + '-' + values.month + '-' + values.day;
 }
 
-async function checkDailyLimit(env, ip) {
+function weekStartKey(input) {
+  const dayKey = shanghaiDateKey(input);
+  const date = new Date(dayKey + 'T00:00:00Z');
+  const offset = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - offset);
+  return date.toISOString().slice(0, 10);
+}
+
+async function checkLimits(env, ip) {
   const dailyLimit = Number(env.AI_DAILY_LIMIT) || 10;
-  const day = shanghaiDateKey(new Date());
+  const weeklyLimit = Number(env.AI_WEEKLY_LIMIT);
+  const weeklyEnabled = Number.isFinite(weeklyLimit) && weeklyLimit > 0;
+  const now = new Date();
+  const day = shanghaiDateKey(now);
+  const week = weekStartKey(now);
 
   if (env.DB) {
     await env.DB.prepare(USAGE_TABLE_SQL).run();
-    const row = await env.DB.prepare('SELECT count FROM ai_usage WHERE ip = ? AND day = ?').bind(ip, day).first();
-    if (row && row.count >= dailyLimit) {
-      return { limited: true, limit: dailyLimit };
+    await env.DB.prepare(WEEKLY_TABLE_SQL).run();
+
+    const dailyRow = await env.DB.prepare('SELECT count FROM ai_usage WHERE ip = ? AND day = ?').bind(ip, day).first();
+    if (dailyRow && dailyRow.count >= dailyLimit) {
+      return { limited: 'day', limit: dailyLimit };
     }
+
+    if (weeklyEnabled) {
+      const weeklyRow = await env.DB.prepare('SELECT count FROM ai_weekly WHERE week = ?').bind(week).first();
+      if (weeklyRow && weeklyRow.count >= weeklyLimit) {
+        return { limited: 'week', limit: weeklyLimit };
+      }
+    }
+
     await env.DB.prepare('INSERT INTO ai_usage (ip, day, count) VALUES (?, ?, 1) ON CONFLICT(ip, day) DO UPDATE SET count = count + 1').bind(ip, day).run();
+    if (weeklyEnabled) {
+      await env.DB.prepare('INSERT INTO ai_weekly (week, count) VALUES (?, 1) ON CONFLICT(week) DO UPDATE SET count = count + 1').bind(week).run();
+    }
     return { limited: false };
   }
 
-  const key = ip + ':' + day;
-  const count = inMemoryDaily.get(key) || 0;
-  if (count >= dailyLimit) {
-    return { limited: true, limit: dailyLimit };
+  const dailyKey = ip + ':' + day;
+  const dailyCount = inMemoryDaily.get(dailyKey) || 0;
+  if (dailyCount >= dailyLimit) {
+    return { limited: 'day', limit: dailyLimit };
   }
-  inMemoryDaily.set(key, count + 1);
+
+  if (weeklyEnabled) {
+    const weeklyCount = inMemoryWeekly.get(week) || 0;
+    if (weeklyCount >= weeklyLimit) {
+      return { limited: 'week', limit: weeklyLimit };
+    }
+  }
+
+  inMemoryDaily.set(dailyKey, dailyCount + 1);
+  if (weeklyEnabled) {
+    inMemoryWeekly.set(week, (inMemoryWeekly.get(week) || 0) + 1);
+  }
   return { limited: false };
 }
 
@@ -95,13 +133,16 @@ export async function onRequestPost(context) {
 
   let limitResult;
   try {
-    limitResult = await checkDailyLimit(env, ip);
+    limitResult = await checkLimits(env, ip);
   } catch (error) {
     return jsonResponse({ error: '使用额度检查失败，请稍后再试。' }, 503);
   }
 
-  if (limitResult.limited) {
+  if (limitResult.limited === 'day') {
     return jsonResponse({ error: '今天的 AI 使用次数已达上限（' + limitResult.limit + ' 次），明天再来吧。' }, 429);
+  }
+  if (limitResult.limited === 'week') {
+    return jsonResponse({ error: '本周的 AI 总次数已达上限（' + limitResult.limit + ' 次），下周再来吧。' }, 429);
   }
 
   const prompt = buildPrompt({ theme, question, cards });
