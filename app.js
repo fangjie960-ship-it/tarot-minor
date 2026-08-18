@@ -263,7 +263,7 @@ async function requestAI() {
 
   const payload = {
     theme: state.theme.name,
-    question: questionInput.value.trim().slice(0, 500),
+    question: questionInput.value.trim().slice(0, 200),
     cards: state.drawn.map((draw) => ({
       title: cardTitle(draw.card),
       suit: SUITS[draw.card.suit].name,
@@ -305,7 +305,7 @@ function sendReadingLog() {
       title: cardTitle(draw.card),
       reversed: draw.reversed
     })),
-    question: consentInput.checked ? questionInput.value.trim().slice(0, 500) : null,
+    question: consentInput.checked ? questionInput.value.trim().slice(0, 200) : null,
     used_ai: false
   };
   fetch("/api/log", {
