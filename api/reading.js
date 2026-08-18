@@ -1,7 +1,6 @@
 const POSITION_NAMES = ['现状', '课题', '建议'];
 
 const inMemoryDaily = new Map();
-const inMemoryWeekly = new Map();
 
 function shanghaiDateKey(input) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -17,35 +16,16 @@ function shanghaiDateKey(input) {
   return values.year + '-' + values.month + '-' + values.day;
 }
 
-function weekStartKey(input) {
-  const dayKey = shanghaiDateKey(input);
-  const date = new Date(dayKey + 'T00:00:00Z');
-  const offset = (date.getUTCDay() + 6) % 7;
-  date.setUTCDate(date.getUTCDate() - offset);
-  return date.toISOString().slice(0, 10);
-}
-
-function checkLimits(ip) {
-  const dailyLimit = Number(process.env.AI_DAILY_LIMIT) || 5;
-  const weeklyLimit = Number(process.env.AI_WEEKLY_LIMIT) || 200;
-  const now = new Date();
-  const day = shanghaiDateKey(now);
-  const week = weekStartKey(now);
-
-  const dailyKey = ip + ':' + day;
-  const dailyCount = inMemoryDaily.get(dailyKey) || 0;
-  if (dailyCount >= dailyLimit) {
-    return { limited: 'day', limit: dailyLimit };
+function checkDailyLimit(ip) {
+  const dailyLimit = Number(process.env.AI_DAILY_LIMIT) || 10;
+  const day = shanghaiDateKey(new Date());
+  const key = ip + ':' + day;
+  const count = inMemoryDaily.get(key) || 0;
+  if (count >= dailyLimit) {
+    return { limited: true, limit: dailyLimit };
   }
-
-  const weeklyCount = inMemoryWeekly.get(week) || 0;
-  if (weeklyCount >= weeklyLimit) {
-    return { limited: 'week', limit: weeklyLimit };
-  }
-
-  inMemoryDaily.set(dailyKey, dailyCount + 1);
-  inMemoryWeekly.set(week, weeklyCount + 1);
-  return { limited: null };
+  inMemoryDaily.set(key, count + 1);
+  return { limited: false };
 }
 
 function buildPrompt({ theme, question, cards }) {
@@ -98,12 +78,9 @@ module.exports = async function handler(req, res) {
   const forwarded = req.headers['x-forwarded-for'];
   const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : (req.socket.remoteAddress || 'unknown');
 
-  const limitResult = checkLimits(ip);
-  if (limitResult.limited === 'day') {
+  const limitResult = checkDailyLimit(ip);
+  if (limitResult.limited) {
     return res.status(429).json({ error: '今天的 AI 使用次数已达上限（' + limitResult.limit + ' 次），明天再来吧。' });
-  }
-  if (limitResult.limited === 'week') {
-    return res.status(429).json({ error: '本周的 AI 总次数已达上限（' + limitResult.limit + ' 次），下周再来吧。' });
   }
 
   const prompt = buildPrompt({ theme, question, cards });

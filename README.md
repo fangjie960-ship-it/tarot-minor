@@ -21,16 +21,14 @@
 - `AI_API_KEY`：模型服务商的 API key
 - `AI_BASE_URL`：兼容 OpenAI 格式的接口地址，例如 DeepSeek 为 `https://api.deepseek.com/v1`，OpenAI 为 `https://api.openai.com/v1`
 - `AI_MODEL`：模型名，例如 `deepseek-chat` 或 `gpt-4o-mini`
-- `AI_DAILY_LIMIT`（可选，默认 5）：每个 IP 每天最多使用 AI 的次数
-- `AI_WEEKLY_LIMIT`（可选，默认 200）：每周 AI 总使用次数上限
+- `AI_DAILY_LIMIT`（可选，默认 10）：每个 IP 每天最多使用 AI 的次数
 
 Cloudflare Pages 在项目 Settings -> Environment variables 中设置，Vercel 在项目 Settings -> Environment Variables 中设置。
 
-达到每日或每周限制后，AI 接口会自动返回提示。想立即重置 Cloudflare 的计数，在 D1 Console 执行：
+达到每日限制后，AI 接口会自动返回提示。想立即重置 Cloudflare 的计数，在 D1 Console 执行：
 
 ```sql
 DELETE FROM ai_usage;
-DELETE FROM ai_weekly;
 ```
 
 ## 使用统计（Cloudflare D1）
